@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 1080px;
+            padding: 60px;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 40px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        .date {
+            font-size: 24px;
+            opacity: 0.8;
+            margin-bottom: 40px;
+        }
+        .content {
+            font-size: 32px;
+            line-height: 1.8;
+        }
+        .highlight {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 8px;
+        }
+        .footer {
+            margin-top: 40px;
+            font-size: 20px;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">{{TITLE}}</div>
+        <div class="date">{{DATE}}</div>
+        <div class="content">{{CONTENT}}</div>
+        <div class="footer">个人交易记录，不构成投资建议</div>
+    </div>
+</body>
+</html>

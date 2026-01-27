@@ -1,0 +1,12 @@
+{
+  "name": "xiaohongshu-ops",
+  "version": "1.0.0",
+  "description": "小红书自动化运营工具",
+  "scripts": {
+    "daily": "./daily_publish.sh",
+    "render": "node scripts/render_images.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  }
+}
