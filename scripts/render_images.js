@@ -148,6 +148,8 @@ function generateSlideHTML(slide, index, total, date) {
 // 格式化内容，添加高亮
 function formatContent(content) {
     return content
+        // 换行符转 <br>
+        .replace(/\n/g, '<br>')
         // 高亮正收益
         .replace(/\+[\d.]+%/g, '<span class="highlight">$&</span>')
         // 高亮负收益
