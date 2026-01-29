@@ -145,18 +145,45 @@ fi
 # 添加 decisive_actions
 echo '  "decisive_actions": [' >> "$DATA_FILE"
 FIRST=true
-for decision in $TODAYS_DECISIONS; do
+while IFS= read -r decision; do
+    [ -z "$decision" ] && continue
     if [ "$FIRST" = true ]; then
         FIRST=false
     else
         echo ',' >> "$DATA_FILE"
     fi
     cat "$DECISIONS_DIR/$decision" >> "$DATA_FILE"
-done
+done <<< "$TODAYS_DECISIONS"
 echo ']' >> "$DATA_FILE"
 echo '}' >> "$DATA_FILE"
 
 log "数据文件已生成: $DATA_FILE"
+
+# 3.5 从 source_data.json 中提取收盘 portfolio_value 并预计算盈亏
+CLOSING_VALUE=$(python3 -c "
+import json
+with open('$DATA_FILE', 'r') as f:
+    data = json.load(f)
+# 从最后一个有 portfolio_value 的 decisive_action 中取
+for d in reversed(data.get('decisive_actions', [])):
+    pv = d.get('market_data', {}).get('portfolio_value')
+    if pv:
+        print(int(pv))
+        break
+" 2>/dev/null)
+
+if [ -n "$CLOSING_VALUE" ]; then
+    DAILY_PL_DOLLARS=$((CLOSING_VALUE - PREVIOUS_PORTFOLIO_VALUE))
+    # 用 python 算百分比，避免 bash 整数除法
+    DAILY_PL_PCT=$(python3 -c "print(round(($CLOSING_VALUE - $PREVIOUS_PORTFOLIO_VALUE) / $PREVIOUS_PORTFOLIO_VALUE * 100, 2))")
+    log "收盘账户总值: \$$CLOSING_VALUE"
+    log "当日盈亏: \$$DAILY_PL_DOLLARS ($DAILY_PL_PCT%)"
+else
+    CLOSING_VALUE=""
+    DAILY_PL_DOLLARS=""
+    DAILY_PL_PCT=""
+    warn "未能从数据中提取收盘 portfolio_value"
+fi
 
 # 4. 调用 Claude 生成内容
 log "正在生成内容..."
@@ -194,6 +221,8 @@ cat > "$PROMPT_FILE" << 'PROMPT_END'
   - Day 1 的 previous_portfolio_value 是 100000（初始资金）
   - Day 2+ 的 previous_portfolio_value 是前一天的收盘账户总值
   - 这样读者可以通过翻看前一天的帖子来验证计算
+  - **禁止**直接引用数据源中的 daily_PL_pct 字段，该字段可能有误。必须用 portfolio_value 和 previous_portfolio_value 自己算
+  - 标题、slides、caption 中出现的百分比必须一致，全部基于上述公式计算
 
 **Slide 2 - 操作时间线**
 - 列出每笔操作的具体时间（美东时间）
@@ -241,6 +270,19 @@ cat > "$PROMPT_FILE" << 'PROMPT_END'
 PROMPT_END
 
 cat "$DATA_FILE" >> "$PROMPT_FILE"
+
+# 注入预计算的盈亏数字（覆盖数据源中可能矛盾的值）
+if [ -n "$CLOSING_VALUE" ]; then
+    cat >> "$PROMPT_FILE" << EOF
+
+===== 以下为脚本预计算的权威数字，必须使用这些数字，忽略数据源中的 daily_PL_pct =====
+收盘账户总值: $CLOSING_VALUE
+前一交易日账户总值: $PREVIOUS_PORTFOLIO_VALUE
+当日盈亏金额: $DAILY_PL_DOLLARS
+当日盈亏百分比: $DAILY_PL_PCT%
+标题、正文、slides 中出现的盈亏数字必须与上述一致。
+EOF
+fi
 
 # 调用 Claude（使用 --print 输出到文件）
 claude --print -p "$(cat "$PROMPT_FILE")" > "$CONTENT_FILE"
